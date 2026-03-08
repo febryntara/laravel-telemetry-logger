@@ -39,6 +39,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Host Name
+    |--------------------------------------------------------------------------
+    | The host name sent in every log payload.
+    |
+    | If left null, the system hostname (gethostname()) is used automatically.
+    | Set this if you want a human-readable name instead of the server hostname,
+    | for example to match the source_tag name configured in your syslog API key.
+    */
+    'host' => env('TELEMETRY_LOGGER_HOST', null),
+
+    /*
+    |--------------------------------------------------------------------------
     | HTTP Timeout (seconds)
     |--------------------------------------------------------------------------
     */
@@ -82,11 +94,10 @@ return [
     |--------------------------------------------------------------------------
     | Queue Settings
     |--------------------------------------------------------------------------
-    | Logs are dispatched asynchronously via Laravel Queue to avoid
-    | blocking the main request/response cycle.
+    | Only used when send_mode = "adaptive".
+    | In "single" mode, logs are sent synchronously and queue is not used.
     */
     'queue' => [
-        'enabled'     => env('TELEMETRY_LOGGER_QUEUE_ENABLED', true),
         'connection'  => env('TELEMETRY_LOGGER_QUEUE_CONNECTION', null), // null = default
         'name'        => env('TELEMETRY_LOGGER_QUEUE_NAME', 'telemetry'),
         'tries'       => env('TELEMETRY_LOGGER_QUEUE_TRIES', 3),

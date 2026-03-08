@@ -27,6 +27,37 @@ class PayloadBuilderTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // Host resolution
+    // -------------------------------------------------------------------------
+
+    public function test_host_uses_system_hostname_when_not_configured(): void
+    {
+        $config  = array_merge($this->baseConfig, ['host' => null]);
+        $request = Request::create('/test', 'GET');
+        $payload = PayloadBuilder::fromRequest($request, null, 0, $config);
+
+        $this->assertEquals(gethostname(), $payload['host']);
+    }
+
+    public function test_host_uses_config_value_when_set(): void
+    {
+        $config  = array_merge($this->baseConfig, ['host' => 'devloka-web']);
+        $request = Request::create('/test', 'GET');
+        $payload = PayloadBuilder::fromRequest($request, null, 0, $config);
+
+        $this->assertEquals('devloka-web', $payload['host']);
+    }
+
+    public function test_custom_host_applies_to_exception_payload(): void
+    {
+        $config  = array_merge($this->baseConfig, ['host' => 'devloka-web']);
+        $e       = new \RuntimeException('Test');
+        $payload = PayloadBuilder::fromException($e, null, $config);
+
+        $this->assertEquals('devloka-web', $payload['host']);
+    }
+
+    // -------------------------------------------------------------------------
     // Syslog-compatible structure
     // -------------------------------------------------------------------------
 

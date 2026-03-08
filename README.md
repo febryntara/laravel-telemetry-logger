@@ -90,21 +90,23 @@ TELEMETRY_LOGGER_LOG_COMMANDS=false
 
 ## Send Modes
 
-All logs are dispatched **asynchronously via Laravel Queue** — the main request/response cycle is never blocked. If your microservice is temporarily down, queued jobs are retained and will be delivered automatically once it recovers.
-
-The package supports two send modes, configurable via `TELEMETRY_SEND_MODE`:
+The package supports two send modes, configurable via `TELEMETRY_SEND_MODE`.
 
 ### `single` (default)
 
-Every log is sent individually to `POST /logs`. Simple, predictable, and compatible with any microservice that accepts a single log object per request.
+Logs are sent **immediately and synchronously** to `POST /logs` — right when the request happens, before the response is returned. No queue involved, no cron needed, no delay.
 
 ```env
 TELEMETRY_SEND_MODE=single
 ```
 
+Best for: most use cases, shared hosting, anywhere you want real-time logs without setting up a queue worker.
+
+> **Note:** each log adds a small HTTP round-trip to your response time (typically < 50ms on a local network). This is usually negligible but worth considering on very high-traffic applications.
+
 ### `adaptive`
 
-The job monitors queue depth before each send. When the queue is healthy, logs go out one-by-one as normal. When the queue starts backing up (depth ≥ threshold), payloads are accumulated in a cache buffer and flushed together as a batch to `POST /logs/batch` — reducing HTTP round-trips under load.
+Logs are dispatched **asynchronously via Laravel Queue**. When the queue is healthy, logs go out one-by-one to `POST /logs`. When the queue starts backing up (depth ≥ threshold), payloads are accumulated in a cache buffer and flushed together to `POST /logs/batch` — reducing HTTP round-trips under load.
 
 ```env
 TELEMETRY_SEND_MODE=adaptive
@@ -112,9 +114,25 @@ TELEMETRY_ADAPTIVE_THRESHOLD=10   # queue depth that triggers batch mode
 TELEMETRY_ADAPTIVE_BATCH_SIZE=50  # payloads per batch flush
 ```
 
-> **Note:** `adaptive` mode requires your microservice to support `POST /logs/batch` with body `{ "logs": [...] }`.
+Best for: high-traffic production apps with a dedicated queue worker (Supervisor/Horizon).
 
-**How adaptive mode handles failures:** if a batch request fails, all payloads are pushed back into the cache buffer so nothing is lost. The job is then re-queued with the configured backoff and tries again.
+> **Note:** `adaptive` mode requires a running queue worker and your microservice to support `POST /logs/batch` with body `{ "logs": [...] }`. If your microservice is down, queued jobs are retained and delivered automatically once it recovers.
+
+**How adaptive mode handles failures:** if a batch request fails, all payloads are pushed back into the cache buffer so nothing is lost. The job is then re-queued with the configured backoff and retries automatically.
+
+---
+
+## Host Name
+
+By default, the `host` field in every log payload uses the system hostname (`gethostname()`). On shared hosting this is often an unreadable server name like `sg-nme-web621.main-hosting.eu`.
+
+You can override it with a human-readable name via `.env`:
+
+```env
+TELEMETRY_LOGGER_HOST=devloka-web
+```
+
+This is especially useful when you want the `host` field to match the `source_tag` name configured in your syslog API key.
 
 ---
 

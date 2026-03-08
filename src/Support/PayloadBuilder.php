@@ -46,7 +46,7 @@ class PayloadBuilder
 
         return [
             'timestamp' => now()->toIso8601String(),
-            'host'      => gethostname(),
+            'host'      => self::resolveHost($config),
             'service'   => $meta['service'] ?? config('app.name', 'laravel'),
             'severity'  => $severity,
             'message'   => sprintf(
@@ -97,7 +97,7 @@ class PayloadBuilder
 
         return [
             'timestamp' => now()->toIso8601String(),
-            'host'      => gethostname(),
+            'host'      => self::resolveHost($config),
             'service'   => $meta['service'] ?? config('app.name', 'laravel'),
             'severity'  => 'error',
             'message'   => sprintf(
@@ -125,7 +125,7 @@ class PayloadBuilder
 
         return [
             'timestamp' => now()->toIso8601String(),
-            'host'      => gethostname(),
+            'host'      => self::resolveHost($config),
             'service'   => $meta['service'] ?? config('app.name', 'laravel'),
             'severity'  => $severity,
             'message'   => sprintf(
@@ -149,7 +149,7 @@ class PayloadBuilder
 
         return [
             'timestamp' => now()->toIso8601String(),
-            'host'      => gethostname(),
+            'host'      => self::resolveHost($config),
             'service'   => $meta['service'] ?? config('app.name', 'laravel'),
             'severity'  => 'warning',
             'message'   => sprintf(
@@ -343,6 +343,15 @@ class PayloadBuilder
             }
         }
         return $files;
+    }
+
+    /**
+     * Resolve the host name for the log payload.
+     * Priority: config('telemetry-logger.host') → env TELEMETRY_LOGGER_HOST → system hostname
+     */
+    protected static function resolveHost(array $config): string
+    {
+        return $config['host'] ?? gethostname();
     }
 
     protected static function formatTrace(Throwable $e): array
