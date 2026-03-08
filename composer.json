@@ -1,14 +1,7 @@
 {
     "name": "febryntara/laravel-telemetry-logger",
     "description": "Comprehensive Laravel activity logger: all routes, requests, sessions, errors, with sensitive data filtering and microservice forwarding.",
-    "keywords": [
-        "laravel",
-        "logging",
-        "telemetry",
-        "activity-log",
-        "request-log",
-        "microservice"
-    ],
+    "keywords": ["laravel", "logging", "telemetry", "activity-log", "request-log", "microservice"],
     "license": "MIT",
     "type": "library",
     "authors": [
@@ -18,14 +11,14 @@
         }
     ],
     "require": {
-        "php": "^8.1",
-        "illuminate/support": "^10.0|^11.0",
-        "illuminate/http": "^10.0|^11.0",
-        "illuminate/queue": "^10.0|^11.0",
-        "illuminate/bus": "^10.0|^11.0"
+        "php": "^8.2",
+        "illuminate/support": "^10.0|^11.0|^12.0",
+        "illuminate/http": "^10.0|^11.0|^12.0",
+        "illuminate/queue": "^10.0|^11.0|^12.0",
+        "illuminate/bus": "^10.0|^11.0|^12.0"
     },
     "require-dev": {
-        "orchestra/testbench": "^8.0|^9.0",
+        "orchestra/testbench": "^8.0|^9.0|^10.0",
         "phpunit/phpunit": "^10.0|^11.0",
         "mockery/mockery": "^1.6"
     },
@@ -53,10 +46,5 @@
         "sort-packages": true
     },
     "minimum-stability": "stable",
-    "prefer-stable": true,
-    "scripts": {
-        "test": "./vendor/bin/phpunit",
-        "test:unit": "./vendor/bin/phpunit --testsuite Unit",
-        "test:feature": "./vendor/bin/phpunit --testsuite Feature"
-    }
+    "prefer-stable": true
 }
