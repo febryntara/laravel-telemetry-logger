@@ -72,18 +72,18 @@ class TelemetryLogger
         }
 
         $mode = strtolower($config['send_mode'] ?? 'single');
-        $job  = new SendTelemetryLogJob($payload, $config);
 
         if ($mode === 'adaptive') {
             // Adaptive mode — always use queue so jobs can be batched
             // when queue depth exceeds the configured threshold.
+            $job = new SendTelemetryLogJob($payload, $config);
             dispatch($job)
                 ->onConnection($config['queue']['connection'])
                 ->onQueue($config['queue']['name']);
         } else {
-            // Single mode (default) — send immediately and synchronously.
-            // No queue involved, log is delivered before the response returns.
-            dispatch_sync($job);
+            // Single mode (default) — send HTTP directly without a job,
+            // so Queue::fake() in tests does not interfere.
+            (new SendTelemetryLogJob($payload, $config))->handle();
         }
     }
 

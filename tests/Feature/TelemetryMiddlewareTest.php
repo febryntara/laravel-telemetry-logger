@@ -240,19 +240,14 @@ class TelemetryMiddlewareTest extends TestCase
 
     public function test_single_mode_does_not_use_queue(): void
     {
-        // single mode uses dispatch_sync — job runs immediately and synchronously.
-        // dispatch_sync is intentionally NOT intercepted by Queue::fake().
-        // We use Http::fake() instead to prevent real HTTP calls.
-        \Illuminate\Support\Facades\Http::fake([
-            '*' => \Illuminate\Support\Facades\Http::response([], 200),
-        ]);
+        Queue::fake();
 
         config(['telemetry-logger.send_mode' => 'single']);
 
         $this->get('/test-route');
 
-        // If we reach here without exception, single mode ran synchronously. ✅
-        $this->assertTrue(true);
+        // single mode calls job->handle() directly, never touches the queue
+        Queue::assertNotPushed(SendTelemetryLogJob::class);
     }
 
     public function test_adaptive_mode_uses_queue(): void
