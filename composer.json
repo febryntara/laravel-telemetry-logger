@@ -1,7 +1,14 @@
 {
     "name": "febryntara/laravel-telemetry-logger",
     "description": "Comprehensive Laravel activity logger: all routes, requests, sessions, errors, with sensitive data filtering and microservice forwarding.",
-    "keywords": ["laravel", "logging", "telemetry", "activity-log", "request-log", "microservice"],
+    "keywords": [
+        "laravel",
+        "logging",
+        "telemetry",
+        "activity-log",
+        "request-log",
+        "microservice"
+    ],
     "license": "MIT",
     "type": "library",
     "authors": [
@@ -46,5 +53,10 @@
         "sort-packages": true
     },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "scripts": {
+        "test": "./vendor/bin/phpunit",
+        "test:unit": "./vendor/bin/phpunit --testsuite Unit",
+        "test:feature": "./vendor/bin/phpunit --testsuite Feature"
+    }
 }

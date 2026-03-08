@@ -24,7 +24,7 @@ class TelemetryLoggerServiceProvider extends ServiceProvider
         );
 
         $this->app->singleton(TelemetryLogger::class, function ($app) {
-            return new TelemetryLogger($app['config']['telemetry-logger']);
+            return new TelemetryLogger();
         });
 
         $this->app->alias(TelemetryLogger::class, 'telemetry-logger');
