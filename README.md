@@ -26,6 +26,7 @@ Designed for AI-assisted anomaly detection, security auditing, and production de
 - ✅ **Artisan command logging** — command name, exit code
 - ✅ **Async dispatch** — uses Laravel Queue, never blocks response
 - ✅ **Retry with backoff** — configurable retries if microservice is down
+- ✅ **Single & adaptive send modes** — static one-by-one or auto-batch under load
 - ✅ **Route exclusion** — skip routes like `telescope*`, `horizon*`, `_debugbar*`
 - ✅ **Custom user resolver** — for non-standard auth systems
 
@@ -58,7 +59,7 @@ Add these to your `.env`:
 
 ```env
 TELEMETRY_LOGGER_ENABLED=true
-TELEMETRY_LOGGER_ENDPOINT=https://your-microservice.com/api/logs
+TELEMETRY_LOGGER_ENDPOINT=https://your-microservice.com/api
 TELEMETRY_LOGGER_TOKEN=your-secret-bearer-token
 
 # Queue (recommended for production)
@@ -66,6 +67,9 @@ TELEMETRY_LOGGER_QUEUE_ENABLED=true
 TELEMETRY_LOGGER_QUEUE_NAME=telemetry
 TELEMETRY_LOGGER_QUEUE_TRIES=3
 TELEMETRY_LOGGER_QUEUE_BACKOFF=10
+
+# Send mode (see Send Modes section below)
+TELEMETRY_SEND_MODE=single
 
 # Optional features
 TELEMETRY_LOGGER_LOG_RESPONSES=false
@@ -78,82 +82,71 @@ TELEMETRY_LOGGER_LOG_COMMANDS=false
 
 ---
 
+## Send Modes
+
+All logs are dispatched **asynchronously via Laravel Queue** — the main request/response cycle is never blocked. If your microservice is temporarily down, queued jobs are retained and will be delivered automatically once it recovers.
+
+The package supports two send modes, configurable via `TELEMETRY_SEND_MODE`:
+
+### `single` (default)
+
+Every log is sent individually to `POST /logs`. Simple, predictable, and compatible with any microservice that accepts a single log object per request.
+
+```env
+TELEMETRY_SEND_MODE=single
+```
+
+### `adaptive`
+
+The job monitors queue depth before each send. When the queue is healthy, logs go out one-by-one as normal. When the queue starts backing up (depth ≥ threshold), payloads are accumulated in a cache buffer and flushed together as a batch to `POST /logs/batch` — reducing HTTP round-trips under load.
+
+```env
+TELEMETRY_SEND_MODE=adaptive
+TELEMETRY_ADAPTIVE_THRESHOLD=10   # queue depth that triggers batch mode
+TELEMETRY_ADAPTIVE_BATCH_SIZE=50  # payloads per batch flush
+```
+
+> **Note:** `adaptive` mode requires your microservice to support `POST /logs/batch` with body `{ "logs": [...] }`.
+
+**How adaptive mode handles failures:** if a batch request fails, all payloads are pushed back into the cache buffer so nothing is lost. The job is then re-queued with the configured backoff and tries again.
+
+---
+
 ## Payload Structure
 
-Every log sent to your microservice is a JSON object with this shape:
-
-### Request Log
+Every log sent to your microservice follows this syslog-compatible format:
 
 ```json
 {
-  "type": "request",
-  "id": "uuid-v4",
-  "timestamp": "2024-01-01T00:00:00.000Z",
-  "duration_ms": 42.5,
-  "request": {
-    "method": "POST",
-    "url": "https://app.com/api/login",
-    "path": "api/login",
-    "route_name": "login",
-    "route_action": "App\\Http\\Controllers\\AuthController@login",
-    "ip": "123.456.789.0",
-    "ips": ["123.456.789.0"],
-    "user_agent": "Mozilla/5.0 ...",
-    "referer": null,
-    "headers": {
-      "content-type": "application/json",
-      "authorization": "***REDACTED***"
-    },
-    "body": {
-      "email": "user@example.com",
-      "password": "***REDACTED***"
-    },
-    "query": {},
-    "files": {}
-  },
-  "response": {
-    "status_code": 200,
-    "headers": {},
-    "body": null
-  },
-  "user": {
-    "id": 42,
-    "email": "user@example.com",
-    "name": "John Doe"
-  },
-  "session": {
-    "id": "session-id-here"
-  },
-  "server": {
-    "hostname": "app-server-1",
-    "php": "8.2.0"
-  },
-  "meta": {
-    "service": "my-app",
-    "env": "production"
-  }
+  "timestamp": "2024-01-01T00:00:00+00:00",
+  "host":      "app-server-1",
+  "service":   "my-app",
+  "severity":  "info",
+  "message":   "[INFO] POST api/login — 42.5 ms | user:12 | ip:123.4.5.6 | detail:{...}"
 }
 ```
 
-### Exception Log
+The `severity` field maps automatically from HTTP status codes:
 
-```json
-{
-  "type": "exception",
-  "id": "uuid-v4",
-  "timestamp": "...",
-  "exception": {
-    "class": "Illuminate\\Database\\QueryException",
-    "message": "SQLSTATE[42S02]: Base table...",
-    "code": 0,
-    "file": "/app/routes/api.php",
-    "line": 42,
-    "trace": [...]
-  },
-  "request": { ... },
-  "user": { ... }
-}
-```
+| Status      | Severity  |
+|-------------|-----------|
+| 2xx         | `info`    |
+| 4xx         | `warning` |
+| 5xx         | `error`   |
+| Exceptions  | `error`   |
+| Slow queries| `warning` |
+| Events      | as passed |
+
+The `message` field contains a human-readable summary followed by the full telemetry detail JSON-encoded inline, including:
+
+- `duration_ms`, `method`, `url`, `route_name`, `route_action`
+- `ip`, `user_agent`, `referer`
+- `headers` — with sensitive headers masked as `***REDACTED***`
+- `body` — with sensitive fields recursively redacted
+- `query`, `files`
+- `response` — status code, headers, optional body
+- `user` — id, email, name
+- `session` — session ID (and optionally session contents)
 
 ---
 
@@ -173,10 +166,10 @@ class MyUserResolver implements UserResolverContract
         if (! $user) return null;
 
         return [
-            'id'       => $user->id,
-            'email'    => $user->email,
-            'role'     => $user->role,
-            'tenant'   => $user->tenant_id,
+            'id'     => $user->id,
+            'email'  => $user->email,
+            'role'   => $user->role,
+            'tenant' => $user->tenant_id,
         ];
     }
 }
@@ -244,9 +237,9 @@ Or with Laravel Horizon, add to `config/horizon.php`:
 ```php
 'telemetry' => [
     'connection' => 'redis',
-    'queue' => ['telemetry'],
-    'balance' => 'simple',
-    'processes' => 1,
+    'queue'      => ['telemetry'],
+    'balance'    => 'simple',
+    'processes'  => 1,
 ],
 ```
 

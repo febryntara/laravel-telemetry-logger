@@ -34,6 +34,40 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Send Mode
+    |--------------------------------------------------------------------------
+    | Controls how logs are dispatched to the microservice endpoint.
+    |
+    | "single"   — (default) Every log is sent individually to POST /logs.
+    |              Simple, predictable, works with any microservice.
+    |
+    | "adaptive" — Monitors queue depth. When the queue is healthy, logs are
+    |              sent one-by-one to POST /logs. When the queue backs up
+    |              (depth >= batch_threshold), payloads are accumulated in a
+    |              cache buffer and flushed together to POST /logs/batch,
+    |              reducing HTTP round-trips under load.
+    |
+    | Note: "adaptive" requires your microservice to support POST /logs/batch
+    | with body: { "logs": [...] }
+    */
+    'send_mode' => env('TELEMETRY_SEND_MODE', 'single'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Adaptive Mode Settings
+    |--------------------------------------------------------------------------
+    | Only used when send_mode = "adaptive".
+    |
+    | batch_threshold — queue depth that triggers batch mode.
+    | batch_size      — number of payloads to accumulate before flushing.
+    */
+    'adaptive' => [
+        'batch_threshold' => env('TELEMETRY_ADAPTIVE_THRESHOLD', 10),
+        'batch_size'      => env('TELEMETRY_ADAPTIVE_BATCH_SIZE', 50),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Queue Settings
     |--------------------------------------------------------------------------
     | Logs are dispatched asynchronously via Laravel Queue to avoid
