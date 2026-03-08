@@ -18,8 +18,7 @@ class TelemetryMiddlewareTest extends TestCase
     {
         $app['config']->set('telemetry-logger.enabled', true);
         $app['config']->set('telemetry-logger.endpoint', 'https://logs.example.com/api');
-        $app['config']->set('telemetry-logger.queue.enabled', true);
-        $app['config']->set('telemetry-logger.send_mode', 'single');
+        $app['config']->set('telemetry-logger.send_mode', 'adaptive'); // use queue in tests
         $app['config']->set('telemetry-logger.sensitive_fields', [
             'password', 'token', 'api_key',
         ]);
@@ -29,6 +28,12 @@ class TelemetryMiddlewareTest extends TestCase
         $app['config']->set('telemetry-logger.metadata', [
             'service' => 'test-app',
             'env'     => 'testing',
+        ]);
+        $app['config']->set('telemetry-logger.queue', [
+            'connection' => null,
+            'name'       => 'telemetry',
+            'tries'      => 3,
+            'backoff'    => 10,
         ]);
     }
 
@@ -233,7 +238,7 @@ class TelemetryMiddlewareTest extends TestCase
     // Send mode config is passed to job
     // -------------------------------------------------------------------------
 
-    public function test_send_mode_single_is_passed_to_job(): void
+    public function test_single_mode_does_not_use_queue(): void
     {
         Queue::fake();
 
@@ -241,13 +246,11 @@ class TelemetryMiddlewareTest extends TestCase
 
         $this->get('/test-route');
 
-        Queue::assertPushed(SendTelemetryLogJob::class, function ($job) {
-            $config = $this->getJobConfig($job);
-            return ($config['send_mode'] ?? null) === 'single';
-        });
+        // single mode uses dispatch_sync — job runs immediately, not via queue
+        Queue::assertNotPushed(SendTelemetryLogJob::class);
     }
 
-    public function test_send_mode_adaptive_is_passed_to_job(): void
+    public function test_adaptive_mode_uses_queue(): void
     {
         Queue::fake();
 
@@ -255,10 +258,8 @@ class TelemetryMiddlewareTest extends TestCase
 
         $this->get('/test-route');
 
-        Queue::assertPushed(SendTelemetryLogJob::class, function ($job) {
-            $config = $this->getJobConfig($job);
-            return ($config['send_mode'] ?? null) === 'adaptive';
-        });
+        // adaptive mode dispatches to queue
+        Queue::assertPushed(SendTelemetryLogJob::class);
     }
 
     // -------------------------------------------------------------------------

@@ -71,13 +71,18 @@ class TelemetryLogger
             return;
         }
 
-        $job = new SendTelemetryLogJob($payload, $config);
+        $mode = strtolower($config['send_mode'] ?? 'single');
+        $job  = new SendTelemetryLogJob($payload, $config);
 
-        if ($config['queue']['enabled']) {
+        if ($mode === 'adaptive') {
+            // Adaptive mode — always use queue so jobs can be batched
+            // when queue depth exceeds the configured threshold.
             dispatch($job)
                 ->onConnection($config['queue']['connection'])
                 ->onQueue($config['queue']['name']);
         } else {
+            // Single mode (default) — send immediately and synchronously.
+            // No queue involved, log is delivered before the response returns.
             dispatch_sync($job);
         }
     }
@@ -100,7 +105,6 @@ class TelemetryLogger
 
     /**
      * Read config live on every call so runtime changes are always picked up.
-     * Accepts an optional dot-notation key for convenience.
      */
     protected function config(?string $key = null): mixed
     {
