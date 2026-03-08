@@ -208,6 +208,14 @@ class PayloadBuilder
     {
         $sensitive = array_map('strtolower', $config['sensitive_headers'] ?? []);
 
+        // Always redact the token_header configured by the user (e.g. X-API-Key)
+        // so it never leaks into the logged payload regardless of what name they chose.
+        if (! empty($config['token_header'])) {
+            $sensitive[] = strtolower($config['token_header']);
+        }
+
+        $sensitive = array_unique($sensitive);
+
         return collect($headers)
             ->mapWithKeys(function ($value, $key) use ($sensitive) {
                 $val = is_array($value) ? implode(', ', $value) : $value;

@@ -60,7 +60,13 @@ Add these to your `.env`:
 ```env
 TELEMETRY_LOGGER_ENABLED=true
 TELEMETRY_LOGGER_ENDPOINT=https://your-microservice.com/api
-TELEMETRY_LOGGER_TOKEN=your-secret-bearer-token
+TELEMETRY_LOGGER_TOKEN=your-secret-token
+
+# Token header — how the token is sent to your microservice
+# "Authorization" (default) → Authorization: Bearer <token>
+# "X-API-Key"               → X-API-Key: <token>
+# Any custom header name is also supported
+TELEMETRY_LOGGER_TOKEN_HEADER=Authorization
 
 # Queue (recommended for production)
 TELEMETRY_LOGGER_QUEUE_ENABLED=true
@@ -109,6 +115,29 @@ TELEMETRY_ADAPTIVE_BATCH_SIZE=50  # payloads per batch flush
 > **Note:** `adaptive` mode requires your microservice to support `POST /logs/batch` with body `{ "logs": [...] }`.
 
 **How adaptive mode handles failures:** if a batch request fails, all payloads are pushed back into the cache buffer so nothing is lost. The job is then re-queued with the configured backoff and tries again.
+
+---
+
+## Token Header & Authentication
+
+The package supports any authentication header your microservice uses. Set it via `TELEMETRY_LOGGER_TOKEN_HEADER`:
+
+```env
+# Default — sends Authorization: Bearer <token>
+TELEMETRY_LOGGER_TOKEN_HEADER=Authorization
+
+# For microservices that use X-API-Key
+TELEMETRY_LOGGER_TOKEN_HEADER=X-API-Key
+
+# Any custom header
+TELEMETRY_LOGGER_TOKEN_HEADER=X-Internal-Secret
+```
+
+### Automatic Token Redaction
+
+Whatever header name you configure as `TELEMETRY_LOGGER_TOKEN_HEADER`, the package **automatically redacts it** from all logged payloads — even if it is not listed in `sensitive_headers`. This prevents your outbound API token from ever appearing in the logs sent to your microservice.
+
+For example, if you set `TELEMETRY_LOGGER_TOKEN_HEADER=X-API-Key`, any incoming request that contains an `X-API-Key` header will have its value replaced with `***REDACTED***` in the log, regardless of what is in the `sensitive_headers` config.
 
 ---
 

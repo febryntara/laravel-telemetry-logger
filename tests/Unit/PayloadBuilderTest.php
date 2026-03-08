@@ -222,6 +222,62 @@ class PayloadBuilderTest extends TestCase
         $this->assertStringContainsString('application/json',      $payload['message']);
     }
 
+    public function test_token_header_authorization_is_auto_redacted(): void
+    {
+        // Default token_header = Authorization — should be redacted automatically
+        $config  = array_merge($this->baseConfig, ['token_header' => 'Authorization']);
+        $request = Request::create('/test', 'GET');
+        $request->headers->set('Authorization', 'Bearer my-outbound-token');
+
+        $payload = PayloadBuilder::fromRequest($request, null, 0, $config);
+
+        $this->assertStringNotContainsString('my-outbound-token', $payload['message']);
+    }
+
+    public function test_custom_token_header_is_auto_redacted(): void
+    {
+        // User configured X-API-Key as token_header — must be redacted even if
+        // it is not listed in sensitive_headers
+        $config  = array_merge($this->baseConfig, [
+            'sensitive_headers' => ['authorization', 'cookie'], // X-API-Key NOT listed
+            'token_header'      => 'X-API-Key',
+        ]);
+
+        $request = Request::create('/test', 'GET');
+        $request->headers->set('X-API-Key',    'super-secret-api-key');
+        $request->headers->set('Content-Type', 'application/json');
+
+        $payload = PayloadBuilder::fromRequest($request, null, 0, $config);
+
+        $this->assertStringNotContainsString('super-secret-api-key', $payload['message']);
+        $this->assertStringContainsString('application/json',        $payload['message']);
+    }
+
+    public function test_custom_token_header_matching_is_case_insensitive(): void
+    {
+        // Header names are case-insensitive per HTTP spec
+        $config  = array_merge($this->baseConfig, ['token_header' => 'X-Custom-Auth']);
+        $request = Request::create('/test', 'GET');
+        $request->headers->set('x-custom-auth', 'secret-value');
+
+        $payload = PayloadBuilder::fromRequest($request, null, 0, $config);
+
+        $this->assertStringNotContainsString('secret-value', $payload['message']);
+    }
+
+    public function test_token_header_not_set_does_not_break_sanitization(): void
+    {
+        // token_header is null/missing — sanitization should still work normally
+        $config  = array_merge($this->baseConfig, ['token_header' => null]);
+        $request = Request::create('/test', 'GET');
+        $request->headers->set('Authorization', 'Bearer some-token');
+
+        $payload = PayloadBuilder::fromRequest($request, null, 0, $config);
+
+        // Authorization is in sensitive_headers so it should still be redacted
+        $this->assertStringNotContainsString('some-token', $payload['message']);
+    }
+
     // -------------------------------------------------------------------------
     // Custom event severity normalization
     // -------------------------------------------------------------------------

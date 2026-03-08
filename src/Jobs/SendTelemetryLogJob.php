@@ -41,7 +41,13 @@ class SendTelemetryLogJob implements ShouldQueue
         ];
 
         if ($token = ($this->config['token'] ?? null)) {
-            $headers['Authorization'] = 'Bearer ' . $token;
+            $authHeader = $this->config['token_header'] ?? 'Authorization';
+
+            if ($authHeader === 'Authorization') {
+                $headers['Authorization'] = 'Bearer ' . $token;
+            } else {
+                $headers[$authHeader] = $token;
+            }
         }
 
         $mode = strtolower($this->config['send_mode'] ?? 'single');

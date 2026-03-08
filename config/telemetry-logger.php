@@ -27,6 +27,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Token Header Name
+    |--------------------------------------------------------------------------
+    | The header used to send the API token to your microservice.
+    |
+    | "Authorization" — sends as: Authorization: Bearer <token>  (default)
+    | "X-API-Key"     — sends as: X-API-Key: <token>
+    | Any custom header name is also supported.
+    */
+    'token_header' => env('TELEMETRY_LOGGER_TOKEN_HEADER', 'Authorization'),
+
+    /*
+    |--------------------------------------------------------------------------
     | HTTP Timeout (seconds)
     |--------------------------------------------------------------------------
     */
