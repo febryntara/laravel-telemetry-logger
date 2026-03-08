@@ -58,29 +58,39 @@ php artisan vendor:publish --tag=telemetry-logger-config
 Add these to your `.env`:
 
 ```env
+# ── Required ──────────────────────────────────────────────────────────────────
 TELEMETRY_LOGGER_ENABLED=true
 TELEMETRY_LOGGER_ENDPOINT=https://your-microservice.com/api
 TELEMETRY_LOGGER_TOKEN=your-secret-token
 
-# Token header — how the token is sent to your microservice
+# ── Send Mode ─────────────────────────────────────────────────────────────────
+# "single" (default) — send immediately and synchronously, no queue needed
+# "adaptive"         — use queue, auto-batch when queue is backed up
+TELEMETRY_SEND_MODE=single
+
+# ── Token Header ──────────────────────────────────────────────────────────────
 # "Authorization" (default) → Authorization: Bearer <token>
 # "X-API-Key"               → X-API-Key: <token>
-# Any custom header name is also supported
 TELEMETRY_LOGGER_TOKEN_HEADER=Authorization
 
-# Queue (recommended for production)
-TELEMETRY_LOGGER_QUEUE_ENABLED=true
+# ── Host Name (optional) ──────────────────────────────────────────────────────
+# Override the hostname sent in every log payload.
+# Defaults to system hostname (gethostname()) if not set.
+TELEMETRY_LOGGER_HOST=my-app-server
+
+# ── Queue (only needed when TELEMETRY_SEND_MODE=adaptive) ─────────────────────
 TELEMETRY_LOGGER_QUEUE_NAME=telemetry
 TELEMETRY_LOGGER_QUEUE_TRIES=3
 TELEMETRY_LOGGER_QUEUE_BACKOFF=10
 
-# Send mode (see Send Modes section below)
-TELEMETRY_SEND_MODE=single
+# ── Adaptive Mode (only needed when TELEMETRY_SEND_MODE=adaptive) ─────────────
+TELEMETRY_ADAPTIVE_THRESHOLD=10
+TELEMETRY_ADAPTIVE_BATCH_SIZE=50
 
-# Optional features
+# ── Optional Features ─────────────────────────────────────────────────────────
 TELEMETRY_LOGGER_LOG_RESPONSES=false
 TELEMETRY_LOGGER_INCLUDE_SESSION=false
-TELEMETRY_LOGGER_SLOW_QUERIES=true
+TELEMETRY_LOGGER_SLOW_QUERIES=false
 TELEMETRY_LOGGER_SLOW_QUERY_THRESHOLD=1000
 TELEMETRY_LOGGER_LOG_JOBS=false
 TELEMETRY_LOGGER_LOG_COMMANDS=false
